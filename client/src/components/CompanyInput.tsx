@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
-type UploadedFile = {
+export type UploadedFile = {
   id: string;
   name: string;
   type: string;
@@ -42,13 +42,14 @@ export function CompanyInput({ onSubmit }: CompanyInputProps) {
   };
 
   const handleFiles = (fileList: FileList) => {
-    const newFiles: UploadedFile[] = Array.from(fileList).map((file) => ({
+    const newFiles: (UploadedFile & { file: File })[] = Array.from(fileList).map((file) => ({
       id: Math.random().toString(36).substr(2, 9),
       name: file.name,
       type: file.type,
       size: file.size,
+      file: file,
     }));
-    setFiles((prev) => [...prev, ...newFiles]);
+    setFiles((prev) => [...prev, ...newFiles] as any);
   };
 
   const removeFile = (id: string) => {
