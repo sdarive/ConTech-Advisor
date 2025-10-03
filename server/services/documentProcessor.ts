@@ -24,7 +24,12 @@ export async function extractTextFromDOCX(buffer: Buffer): Promise<string> {
 
 export async function scrapeWebsite(url: string): Promise<string> {
   try {
-    const response = await fetch(url);
+    let normalizedUrl = url.trim();
+    if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
+      normalizedUrl = 'https://' + normalizedUrl;
+    }
+    
+    const response = await fetch(normalizedUrl);
     const html = await response.text();
     const $ = cheerio.load(html);
     
