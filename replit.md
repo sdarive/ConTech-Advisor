@@ -1,7 +1,7 @@
 # Contech Advisor - AI-Powered M&A Evaluation Platform
 
 ## Overview
-An AI-powered multi-agent system for conducting comprehensive M&A due diligence on construction technology companies. Uses Google Gemini 2.0 to orchestrate five specialist agents that analyze companies across different dimensions and generate executive-ready reports.
+An AI-powered multi-agent system for conducting comprehensive M&A due diligence on construction technology companies. Uses OpenAI GPT-5 to orchestrate five specialist agents that analyze companies across different dimensions and generate executive-ready reports.
 
 ## Architecture
 
@@ -19,7 +19,7 @@ All agent system prompts are loaded from `attached_assets/Agent Prompts - Sheet1
 ### Technology Stack
 - **Frontend**: React, TanStack Query, Tailwind CSS, Shadcn UI
 - **Backend**: Express.js, Node.js with TypeScript
-- **AI**: Google Gemini 2.5 Flash Preview
+- **AI**: OpenAI GPT-5
 - **Document Processing**: PDF-parse, Mammoth (DOCX), Cheerio (web scraping)
 - **Storage**: In-memory (MemStorage) for rapid prototyping
 
@@ -52,7 +52,7 @@ All agent system prompts are loaded from `attached_assets/Agent Prompts - Sheet1
 - `GET /api/evaluations/:id/agents` - Get real-time agent statuses
 
 ## Environment Variables
-- `GEMINI_API_KEY` - Google Gemini API key (required)
+- `OPENAI_API_KEY` - OpenAI API key (required)
 - `SESSION_SECRET` - Session secret for security
 
 ## Design System

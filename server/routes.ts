@@ -3,7 +3,8 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import multer from "multer";
 import { extractTextFromPDF, extractTextFromDOCX, extractTextFromTXT, scrapeWebsite } from "./services/documentProcessor";
-import { runAgent, synthesizeReports, type AgentType } from "./services/geminiService";
+import { runAgent, synthesizeReports } from "./services/openaiService";
+import { type AgentType } from "./agents/promptLoader";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
