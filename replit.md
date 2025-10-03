@@ -19,7 +19,7 @@ All agent system prompts are loaded from `attached_assets/Agent Prompts - Sheet1
 ### Technology Stack
 - **Frontend**: React, TanStack Query, Tailwind CSS, Shadcn UI
 - **Backend**: Express.js, Node.js with TypeScript
-- **AI**: Google Gemini 2.0 Flash Exp
+- **AI**: Google Gemini 2.5 Pro
 - **Document Processing**: PDF-parse, Mammoth (DOCX), Cheerio (web scraping)
 - **Storage**: In-memory (MemStorage) for rapid prototyping
 
