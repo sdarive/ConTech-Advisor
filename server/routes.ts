@@ -5,6 +5,7 @@ import multer from "multer";
 import { extractTextFromPDF, extractTextFromDOCX, extractTextFromTXT, scrapeWebsite } from "./services/documentProcessor";
 import { runAgent, synthesizeReports } from "./services/openaiService";
 import { type AgentType } from "./agents/promptLoader";
+import { generateEvaluationPDF } from "./services/pdfGenerator";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -197,6 +198,44 @@ ${documentTexts.substring(0, 10000)}
     } catch (error) {
       console.error("Error getting agent statuses:", error);
       res.status(500).json({ error: "Failed to get agent statuses" });
+    }
+  });
+
+  app.get("/api/evaluations/:id/download", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const evaluation = await storage.getEvaluation(id);
+      
+      if (!evaluation) {
+        return res.status(404).json({ error: "Evaluation not found" });
+      }
+
+      if (evaluation.status !== "complete") {
+        return res.status(400).json({ error: "Evaluation not yet complete" });
+      }
+
+      const pdfData = {
+        companyName: evaluation.companyName,
+        companyUrl: evaluation.companyUrl,
+        recommendation: (evaluation.recommendation || 'caution') as 'proceed' | 'caution' | 'do-not-proceed',
+        executiveSummary: evaluation.executiveSummary || '',
+        sections: (evaluation.finalReport as any)?.sections || [],
+        agentReports: evaluation.agentReports as any || {},
+        createdAt: evaluation.createdAt,
+      };
+
+      const pdfBuffer = await generateEvaluationPDF(pdfData);
+
+      const filename = `${evaluation.companyName.replace(/[^a-z0-9]/gi, '_')}_MA_Evaluation_${new Date().toISOString().split('T')[0]}.pdf`;
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', pdfBuffer.length);
+      
+      res.send(pdfBuffer);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      res.status(500).json({ error: "Failed to generate PDF report" });
     }
   });
 

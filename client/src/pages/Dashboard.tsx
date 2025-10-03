@@ -180,6 +180,40 @@ export default function Dashboard() {
     sections: evaluation.finalReport.sections || [],
   } : null;
 
+  const handleDownloadReport = async () => {
+    if (!evaluationId) return;
+    
+    try {
+      const response = await fetch(`/api/evaluations/${evaluationId}/download`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to download report');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${evaluation?.companyName || 'Company'}_MA_Evaluation_${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: "Report Downloaded",
+        description: "PDF report has been downloaded successfully.",
+      });
+    } catch (error) {
+      console.error("Error downloading report:", error);
+      toast({
+        title: "Error",
+        description: "Failed to download report. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -229,7 +263,7 @@ export default function Dashboard() {
           {stage === "complete" && reportData && (
             <div className="space-y-4">
               <h2 className="text-xl font-semibold">Executive Report</h2>
-              <ReportViewer {...reportData} />
+              <ReportViewer {...reportData} onDownload={handleDownloadReport} />
             </div>
           )}
         </TabsContent>
