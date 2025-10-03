@@ -1,7 +1,6 @@
 import OpenAI from "openai";
 import { AGENT_PROMPTS, type AgentType } from "../agents/promptLoader";
 
-// the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function runAgent(
@@ -17,7 +16,7 @@ export async function runAgent(
   
   try {
     const stream = await openai.chat.completions.create({
-      model: "gpt-5",
+      model: "gpt-4o-mini",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: `Context and Data:\n${context}\n\n---\n\nProvide your analysis now:` }
@@ -108,7 +107,7 @@ Return your response in JSON format:
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-5",
+      model: "gpt-4o-mini",
       messages: [
         { role: "system", content: "You are an M&A advisor synthesizing specialist reports." },
         { role: "user", content: context }

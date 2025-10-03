@@ -1,7 +1,7 @@
 # Contech Advisor - AI-Powered M&A Evaluation Platform
 
 ## Overview
-An AI-powered multi-agent system for conducting comprehensive M&A due diligence on construction technology companies. Uses OpenAI GPT-5 to orchestrate five specialist agents that analyze companies across different dimensions and generate executive-ready reports.
+An AI-powered multi-agent system for conducting comprehensive M&A due diligence on construction technology companies. Uses OpenAI GPT-4o-mini to orchestrate five specialist agents that analyze companies across different dimensions and generate executive-ready reports.
 
 ## Architecture
 
@@ -19,7 +19,7 @@ All agent system prompts are loaded from `attached_assets/Agent Prompts - Sheet1
 ### Technology Stack
 - **Frontend**: React, TanStack Query, Tailwind CSS, Shadcn UI
 - **Backend**: Express.js, Node.js with TypeScript
-- **AI**: OpenAI GPT-5
+- **AI**: OpenAI GPT-4o-mini
 - **Document Processing**: PDF-parse, Mammoth (DOCX), Cheerio (web scraping)
 - **Storage**: In-memory (MemStorage) for rapid prototyping
 
