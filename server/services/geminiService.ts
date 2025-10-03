@@ -8,7 +8,7 @@ export async function runAgent(
   context: string,
   onProgress?: (chunk: string) => void
 ): Promise<string> {
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-latest" });
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
   
   const systemPrompt = AGENT_PROMPTS[agentType];
   const fullPrompt = `${systemPrompt}\n\n---\n\nContext and Data:\n${context}\n\n---\n\nProvide your analysis now:`;
@@ -36,7 +36,7 @@ export async function synthesizeReports(
   companyData: string,
   agentReports: Record<string, string>
 ): Promise<{ recommendation: string; executiveSummary: string; sections: any[] }> {
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-latest" });
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
   
   const context = `
 Company Data:
