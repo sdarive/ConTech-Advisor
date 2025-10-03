@@ -46,14 +46,19 @@ export default function Dashboard() {
 
   const handleStartAnalysis = async (url: string, files: UploadedFile[]) => {
     try {
-      const companyName = new URL(url).hostname.replace("www.", "").split(".")[0];
+      let normalizedUrl = url.trim();
+      if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
+        normalizedUrl = 'https://' + normalizedUrl;
+      }
+      
+      const companyName = new URL(normalizedUrl).hostname.replace("www.", "").split(".")[0];
       
       const evalRes = await apiRequest(
         "POST",
         "/api/evaluations",
         {
           companyName: companyName.charAt(0).toUpperCase() + companyName.slice(1),
-          companyUrl: url,
+          companyUrl: normalizedUrl,
         }
       );
       const evalResponse = await evalRes.json();
