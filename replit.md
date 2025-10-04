@@ -26,7 +26,10 @@ All agent system prompts are loaded from `attached_assets/Agent Prompts - Sheet1
 ## Features
 
 ### Input & Data Collection
-- Company URL submission with automatic web scraping
+- Company URL submission with intelligent multi-page web crawling
+  - Automatically discovers and crawls relevant pages (about, team, products, pricing, customers, media, investors)
+  - Extracts structured data: company info, financial data, leadership bios, testimonials, product descriptions, pricing, videos
+  - Provides rich context to all specialist agents for higher quality analysis
 - Multi-format document upload (PDF, DOCX, PPT, TXT)
 - Intelligent text extraction from all document types
 
@@ -63,13 +66,16 @@ All agent system prompts are loaded from `attached_assets/Agent Prompts - Sheet1
 
 ## Workflow
 1. User enters company URL and uploads documents
-2. Manager Agent receives data and scrapes website
-3. Manager delegates analysis tasks to 5 specialist agents in parallel
-4. Each agent analyzes their domain using Gemini AI with custom prompts
-5. Agents return structured markdown reports with findings
-6. Manager synthesizes all reports and generates executive summary
-7. Final report includes recommendation (Proceed/Caution/Do Not Proceed)
-8. User can download comprehensive PDF report
+2. Enhanced multi-page web crawler discovers and extracts structured data:
+   - Crawls homepage and discovers relevant internal pages
+   - Extracts company info, leadership team, products, testimonials, pricing, financial data
+   - Formats data specifically for agent consumption
+3. Manager Agent receives enriched context and delegates tasks to 5 specialist agents in parallel
+4. Each agent analyzes their domain using GPT-4o-mini with custom prompts and crawled data
+5. Agents return structured markdown reports with data-driven findings
+6. Manager synthesizes all reports and generates executive summary with metrics
+7. Final report includes recommendation (Proceed/Caution/Do Not Proceed) and visualizations
+8. User can download executive-quality PDF report with charts and graphs
 
 ## Future Enhancements
 - Multi-model support (Claude, GPT-4) for cross-validation
