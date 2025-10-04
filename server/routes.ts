@@ -5,7 +5,7 @@ import multer from "multer";
 import { extractTextFromPDF, extractTextFromDOCX, extractTextFromTXT, scrapeWebsite } from "./services/documentProcessor";
 import { runAgent, synthesizeReports } from "./services/openaiService";
 import { type AgentType } from "./agents/promptLoader";
-import { generateEvaluationPDF } from "./services/pdfGenerator";
+import { generateEvaluationPDF } from "./services/pdfGeneratorPuppeteer";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -221,6 +221,7 @@ ${documentTexts.substring(0, 10000)}
         executiveSummary: evaluation.executiveSummary || '',
         sections: (evaluation.finalReport as any)?.sections || [],
         agentReports: evaluation.agentReports as any || {},
+        metrics: (evaluation.finalReport as any)?.metrics || {},
         createdAt: evaluation.createdAt,
       };
 

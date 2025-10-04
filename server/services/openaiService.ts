@@ -44,7 +44,7 @@ export async function runAgent(
 export async function synthesizeReports(
   companyData: string,
   agentReports: Record<string, string>
-): Promise<{ recommendation: string; executiveSummary: string; sections: any[] }> {
+): Promise<{ recommendation: string; executiveSummary: string; sections: any[]; metrics?: any }> {
   if (!AGENT_PROMPTS.manager) {
     throw new Error('No prompt found for manager agent');
   }
@@ -101,8 +101,31 @@ Return your response in JSON format:
       "content": "string",
       "subsections": [{"title": "string", "content": "string"}]
     }
-  ]
+  ],
+  "metrics": {
+    "financial": {
+      "revenue": [{"label": "string", "value": number}],
+      "profitability": [{"label": "string", "value": number}]
+    },
+    "market": {
+      "position": [{"label": "string", "value": number}],
+      "growth": [{"label": "string", "value": number}]
+    },
+    "commercial": {
+      "metrics": [{"label": "string", "value": number}]
+    },
+    "technology": {
+      "scores": [{"label": "string", "value": number}]
+    },
+    "operations": {
+      "scores": [{"label": "string", "value": number}]
+    },
+    "risks": [{"category": "string", "likelihood": number (0-10), "impact": number (0-10)}],
+    "scoreBreakdown": [{"label": "string", "value": number, "color": "string"}]
+  }
 }
+
+IMPORTANT: Extract numeric metrics and scores from the specialist reports to populate the metrics object. For risks, assign likelihood and impact scores between 0-10 based on the analysis. For scoreBreakdown, provide an overall evaluation score breakdown across different dimensions.
 `;
 
   try {
