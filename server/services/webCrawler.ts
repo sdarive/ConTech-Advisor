@@ -137,37 +137,50 @@ async function discoverRelevantPages(baseUrl: string, domain: string): Promise<P
     { url: baseUrl, type: 'homepage' }
   ];
 
-  const commonPaths = [
-    { path: '/about', type: 'about' },
-    { path: '/about-us', type: 'about' },
-    { path: '/company', type: 'about' },
-    { path: '/team', type: 'team' },
-    { path: '/leadership', type: 'team' },
-    { path: '/our-team', type: 'team' },
-    { path: '/products', type: 'products' },
-    { path: '/solutions', type: 'products' },
-    { path: '/services', type: 'products' },
-    { path: '/pricing', type: 'pricing' },
-    { path: '/customers', type: 'customers' },
-    { path: '/case-studies', type: 'customers' },
-    { path: '/testimonials', type: 'customers' },
-    { path: '/reviews', type: 'customers' },
-    { path: '/newsroom', type: 'media' },
-    { path: '/press', type: 'media' },
-    { path: '/news', type: 'media' },
-    { path: '/investors', type: 'financial' },
-    { path: '/investor-relations', type: 'financial' }
-  ];
+  try {
+    const response = await fetch(baseUrl, { signal: AbortSignal.timeout(5000) });
+    const html = await response.text();
+    const $ = cheerio.load(html);
+    
+    const discoveredUrls = new Set<string>();
+    
+    $('a[href]').each((_, el) => {
+      const href = $(el).attr('href');
+      if (!href) return;
+      
+      try {
+        const absoluteUrl = new URL(href, baseUrl).href;
+        const urlObj = new URL(absoluteUrl);
+        
+        if (urlObj.hostname !== new URL(baseUrl).hostname) return;
+        
+        discoveredUrls.add(absoluteUrl);
+      } catch {}
+    });
 
-  for (const { path, type } of commonPaths) {
-    try {
-      const testUrl = new URL(path, baseUrl).href;
-      const response = await fetch(testUrl, { method: 'HEAD', signal: AbortSignal.timeout(3000) });
-      if (response.ok) {
-        pages.push({ url: testUrl, type });
+    const relevantPatterns = [
+      { patterns: ['/about', '/company', '/who-we-are', '/our-story'], type: 'about' },
+      { patterns: ['/team', '/leadership', '/people', '/executives', '/management'], type: 'team' },
+      { patterns: ['/products', '/solutions', '/services', '/platform', '/features'], type: 'products' },
+      { patterns: ['/pricing', '/plans', '/cost'], type: 'pricing' },
+      { patterns: ['/customers', '/clients', '/case-studies', '/testimonials', '/success', '/reviews'], type: 'customers' },
+      { patterns: ['/news', '/press', '/media', '/newsroom', '/blog'], type: 'media' },
+      { patterns: ['/investors', '/investor-relations', '/ir'], type: 'financial' }
+    ];
+
+    for (const url of discoveredUrls) {
+      const lowerUrl = url.toLowerCase();
+      
+      for (const { patterns, type } of relevantPatterns) {
+        if (patterns.some(pattern => lowerUrl.includes(pattern))) {
+          pages.push({ url, type });
+          break;
+        }
       }
-    } catch {
     }
+    
+  } catch (error) {
+    console.error('Error discovering pages:', error);
   }
 
   return pages;
@@ -221,52 +234,87 @@ function extractCompanyInfo($: cheerio.CheerioAPI, data: CrawledData): void {
     data.companyInfo.description = metaDescription;
   }
 
-  $('h1, h2, h3').each((_, el) => {
+  if (!data.companyInfo.description) {
+    $('h1').first().parent().find('p').each((_, el) => {
+      const text = $(el).text().trim();
+      if (text.length > 50 && text.length < 500 && !data.companyInfo.description) {
+        data.companyInfo.description = text;
+      }
+    });
+  }
+
+  $('h1, h2, h3, h4').each((_, el) => {
     const text = $(el).text().toLowerCase();
-    if (text.includes('mission') || text.includes('vision')) {
-      const content = $(el).next('p, div').text().trim();
-      if (content && !data.companyInfo.mission) {
+    if ((text.includes('mission') || text.includes('vision') || text.includes('what we do')) && !data.companyInfo.mission) {
+      let content = $(el).nextAll('p').first().text().trim();
+      if (!content) {
+        content = $(el).next().text().trim();
+      }
+      if (content && content.length > 30) {
         data.companyInfo.mission = content.substring(0, 500);
       }
     }
   });
 
-  $('*').each((_, el) => {
-    const text = $(el).text();
-    const foundedMatch = text.match(/founded\s+in\s+(\d{4})|established\s+(\d{4})/i);
-    if (foundedMatch && !data.companyInfo.founded) {
-      data.companyInfo.founded = foundedMatch[1] || foundedMatch[2];
-    }
+  const bodyText = $('body').text();
+  
+  const foundedMatch = bodyText.match(/founded\s+in\s+(\d{4})|established\s+in\s+(\d{4})|since\s+(\d{4})/i);
+  if (foundedMatch && !data.companyInfo.founded) {
+    data.companyInfo.founded = foundedMatch[1] || foundedMatch[2] || foundedMatch[3];
+  }
 
-    const hqMatch = text.match(/headquartered\s+in\s+([^.,]+)|headquarters:\s*([^.,]+)/i);
-    if (hqMatch && !data.companyInfo.headquarters) {
-      data.companyInfo.headquarters = (hqMatch[1] || hqMatch[2]).trim();
-    }
-  });
+  const hqMatch = bodyText.match(/headquartered\s+in\s+([^.,\n]+)|headquarters[:\s]+([^.,\n]+)|based\s+in\s+([A-Z][^.,\n]+)/i);
+  if (hqMatch && !data.companyInfo.headquarters) {
+    data.companyInfo.headquarters = (hqMatch[1] || hqMatch[2] || hqMatch[3]).trim().substring(0, 100);
+  }
 }
 
 function extractTeamInfo($: cheerio.CheerioAPI, data: CrawledData): void {
-  $('[class*="team"], [class*="leader"], [class*="executive"]').each((_, el) => {
-    const name = $(el).find('[class*="name"], h2, h3, h4').first().text().trim();
-    const title = $(el).find('[class*="title"], [class*="position"], [class*="role"]').first().text().trim();
-    const bio = $(el).find('[class*="bio"], p').first().text().trim();
-
-    if (name && title) {
-      data.team.leadership.push({
-        name,
-        title,
-        bio: bio.substring(0, 300)
+  const seenNames = new Set<string>();
+  
+  $('h2, h3, h4, h5, strong, b').each((_, el) => {
+    const potentialName = $(el).text().trim();
+    
+    if (potentialName.match(/^[A-Z][a-z]+\s+[A-Z][a-z]+/) && potentialName.length < 50) {
+      const parent = $(el).parent();
+      const nextElements = $(el).nextAll().slice(0, 3);
+      
+      let title = '';
+      let bio = '';
+      
+      nextElements.each((_, next) => {
+        const text = $(next).text().trim();
+        if (text.length < 100 && (text.match(/CEO|CTO|CFO|President|Director|VP|Vice President|Chief|Head|Manager|Co-founder|Founder/i))) {
+          title = text;
+        } else if (text.length > 30 && text.length < 500) {
+          bio = text;
+        }
       });
+
+      if (!title) {
+        const siblingText = parent.text();
+        const titleMatch = siblingText.match(new RegExp(potentialName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[,\\s-]+(.*?)(?:[.,]|$)', 'i'));
+        if (titleMatch) {
+          title = titleMatch[1].substring(0, 100);
+        }
+      }
+      
+      if (title && !seenNames.has(potentialName.toLowerCase())) {
+        seenNames.add(potentialName.toLowerCase());
+        data.team.leadership.push({
+          name: potentialName,
+          title: title,
+          bio: bio.substring(0, 300)
+        });
+      }
     }
   });
 
-  $('*').each((_, el) => {
-    const text = $(el).text();
-    const teamSizeMatch = text.match(/(\d+[\+]?)\s+employees|team\s+of\s+(\d+)/i);
-    if (teamSizeMatch && !data.team.teamSize) {
-      data.team.teamSize = teamSizeMatch[1] || teamSizeMatch[2];
-    }
-  });
+  const bodyText = $('body').text();
+  const teamSizeMatch = bodyText.match(/(\d[\d,]+[\+]?)\s+employees|team\s+of\s+(\d[\d,]+)|(\d[\d,]+[\+]?)\s+people/i);
+  if (teamSizeMatch && !data.team.teamSize) {
+    data.team.teamSize = (teamSizeMatch[1] || teamSizeMatch[2] || teamSizeMatch[3]).replace(/,/g, '');
+  }
 }
 
 function extractProductInfo($: cheerio.CheerioAPI, data: CrawledData): void {
@@ -293,39 +341,78 @@ function extractProductInfo($: cheerio.CheerioAPI, data: CrawledData): void {
 }
 
 function extractPricingInfo($: cheerio.CheerioAPI, data: CrawledData): void {
-  $('[class*="price"], [class*="pricing"]').each((_, el) => {
+  $('*').each((_, el) => {
     const text = $(el).text().trim();
-    if (text.match(/\$|€|£|\d+/)) {
-      data.financial.pricing.push(text);
+    const priceMatch = text.match(/\$\d+(?:,\d{3})*(?:\.\d{2})?(?:\/(?:month|year|mo|yr|user|seat))?/gi);
+    if (priceMatch) {
+      priceMatch.forEach(price => {
+        if (!data.financial.pricing.includes(price)) {
+          data.financial.pricing.push(price);
+        }
+      });
+    }
+  });
+
+  $('h2, h3, h4').each((_, el) => {
+    const heading = $(el).text().trim();
+    if (heading.match(/free|starter|basic|pro|premium|enterprise|business/i)) {
+      const priceInfo = $(el).nextAll().slice(0, 3).text().trim();
+      if (priceInfo.match(/\$/)) {
+        data.financial.pricing.push(`${heading}: ${priceInfo.substring(0, 100)}`);
+      }
     }
   });
 }
 
 function extractCustomerInfo($: cheerio.CheerioAPI, data: CrawledData): void {
-  $('[class*="testimonial"], [class*="review"], [class*="quote"]').each((_, el) => {
-    const quote = $(el).find('p, [class*="text"], [class*="content"]').first().text().trim();
-    const author = $(el).find('[class*="author"], [class*="name"]').first().text().trim();
-    const company = $(el).find('[class*="company"], [class*="organization"]').first().text().trim();
-
-    if (quote) {
+  $('blockquote, q').each((_, el) => {
+    const quote = $(el).text().trim();
+    if (quote && quote.length > 20 && quote.length < 1000) {
+      let author = '';
+      let company = '';
+      
+      const next = $(el).next();
+      const nextText = next.text().trim();
+      const authorMatch = nextText.match(/^[—–-]\s*(.+?)(?:,\s*(.+))?$/);
+      if (authorMatch) {
+        author = authorMatch[1];
+        company = authorMatch[2] || '';
+      }
+      
       data.customers.testimonials.push({
         author: author || 'Anonymous',
-        company: company || '',
+        company: company,
         quote: quote.substring(0, 300)
       });
     }
   });
 
-  $('[class*="case-study"], [class*="success-story"]').each((_, el) => {
-    const caseStudy = $(el).text().trim();
-    if (caseStudy) {
-      data.customers.caseStudies.push(caseStudy.substring(0, 500));
+  $('p').each((_, el) => {
+    const text = $(el).text().trim();
+    if (text.startsWith('"') && text.endsWith('"') && text.length > 50 && text.length < 500) {
+      data.customers.testimonials.push({
+        author: 'Customer',
+        company: '',
+        quote: text.substring(1, text.length - 1).substring(0, 300)
+      });
     }
   });
 
-  $('img[alt*="logo"], img[class*="logo"], img[class*="client"]').each((_, el) => {
+  $('h2, h3').each((_, el) => {
+    const heading = $(el).text().toLowerCase();
+    if (heading.includes('case study') || heading.includes('success story') || heading.includes('customer story')) {
+      const content = $(el).nextAll('p, div').first().text().trim();
+      if (content && content.length > 100) {
+        data.customers.caseStudies.push(content.substring(0, 500));
+      }
+    }
+  });
+
+  $('img').each((_, el) => {
     const alt = $(el).attr('alt') || '';
-    if (alt) {
+    const src = $(el).attr('src') || '';
+    if ((alt.toLowerCase().includes('logo') || src.toLowerCase().includes('logo')) && 
+        !alt.toLowerCase().includes('our logo') && alt.length > 2) {
       data.customers.clientLogos.push(alt);
     }
   });
