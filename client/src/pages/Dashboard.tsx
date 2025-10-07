@@ -22,27 +22,57 @@ type WorkflowStage = "input" | "analyzing" | "complete";
 export default function Dashboard() {
   const [stage, setStage] = useState<WorkflowStage>("input");
   const [evaluationId, setEvaluationId] = useState<string | null>(null);
+  const [pollCount, setPollCount] = useState(0);
   const { toast } = useToast();
+
+  // Stop polling after 5 minutes (150 polls at 2 second intervals) to prevent infinite loops
+  const maxPolls = 150;
+  const shouldPoll = stage === "analyzing" && pollCount < maxPolls;
 
   const { data: evaluation } = useQuery<any>({
     queryKey: ["/api/evaluations", evaluationId],
     enabled: !!evaluationId,
-    refetchInterval: stage === "analyzing" ? 2000 : false,
+    refetchInterval: shouldPoll ? 2000 : false,
   });
 
   const { data: agentStatuses = [] } = useQuery<any[]>({
     queryKey: ["/api/evaluations", evaluationId, "agents"],
     enabled: !!evaluationId,
-    refetchInterval: stage === "analyzing" ? 2000 : false,
+    refetchInterval: shouldPoll ? 2000 : false,
   });
+
+  useEffect(() => {
+    if (shouldPoll) {
+      setPollCount(prev => prev + 1);
+    }
+  }, [evaluation, shouldPoll]);
+
+  useEffect(() => {
+    if (pollCount >= maxPolls && stage === "analyzing") {
+      toast({
+        title: "Analysis Timeout",
+        description: "The analysis is taking longer than expected. Please refresh the page or try again.",
+        variant: "destructive",
+      });
+    }
+  }, [pollCount, stage, toast]);
 
   useEffect(() => {
     if (evaluation?.status === "complete") {
       setStage("complete");
+      setPollCount(0); // Reset poll count on completion
     } else if (evaluation?.status === "analyzing") {
       setStage("analyzing");
+    } else if (evaluation?.status === "error") {
+      setStage("input");
+      setPollCount(0);
+      toast({
+        title: "Analysis Failed",
+        description: "An error occurred during analysis. Please try again.",
+        variant: "destructive",
+      });
     }
-  }, [evaluation?.status]);
+  }, [evaluation?.status, toast]);
 
   const handleStartAnalysis = async (url: string, files: UploadedFile[]) => {
     try {

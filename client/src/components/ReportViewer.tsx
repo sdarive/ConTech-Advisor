@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 type ReportSection = {
   id: string;
@@ -105,9 +107,9 @@ export function ReportViewer({
               <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-3">
                 Executive Summary
               </h3>
-              <p className="text-sm leading-relaxed" data-testid="text-executive-summary">
-                {executiveSummary}
-              </p>
+              <div className="text-sm leading-relaxed prose prose-sm max-w-none" data-testid="text-executive-summary">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{executiveSummary}</ReactMarkdown>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -137,7 +139,9 @@ export function ReportViewer({
               </CardHeader>
               {isExpanded && (
                 <CardContent className="space-y-4">
-                  <p className="text-sm leading-relaxed">{section.content}</p>
+                  <div className="text-sm leading-relaxed prose prose-sm max-w-none">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{section.content}</ReactMarkdown>
+                  </div>
                   {section.subsections && section.subsections.length > 0 && (
                     <div className="space-y-3 pl-4 border-l-2 border-border">
                       {section.subsections.map((subsection, idx) => (
@@ -145,9 +149,9 @@ export function ReportViewer({
                           <h4 className="text-sm font-medium mb-1">
                             {subsection.title}
                           </h4>
-                          <p className="text-sm text-muted-foreground leading-relaxed">
-                            {subsection.content}
-                          </p>
+                          <div className="text-sm text-muted-foreground leading-relaxed prose prose-sm max-w-none">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{subsection.content}</ReactMarkdown>
+                          </div>
                         </div>
                       ))}
                     </div>

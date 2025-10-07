@@ -1,4 +1,5 @@
 import puppeteer from 'puppeteer';
+import { marked } from 'marked';
 import type { MetricData, TimeSeriesData, RiskItem } from './chartGenerator';
 import {
   generateBarChart,
@@ -88,6 +89,21 @@ async function generateChartImages(metrics?: ReportMetrics): Promise<Record<stri
   }
 
   return charts;
+}
+
+function convertMarkdownToHTML(markdownText: string): string {
+  try {
+    // Convert markdown to HTML
+    const html = marked.parse(markdownText, { async: false }) as string;
+    // Clean up excessive whitespace and newlines
+    return html
+      .replace(/\n{3,}/g, '\n\n') // Replace 3+ newlines with 2
+      .replace(/<p>\s*<\/p>/g, '') // Remove empty paragraphs
+      .trim();
+  } catch (error) {
+    console.error('Error converting markdown to HTML:', error);
+    return markdownText; // Fallback to original text
+  }
 }
 
 function generateHTMLReport(data: EvaluationPDFData, charts: Record<string, string>): string {
@@ -308,9 +324,77 @@ function generateHTMLReport(data: EvaluationPDFData, charts: Record<string, stri
       margin-left: 1.5em;
       margin-bottom: 0.75em;
     }
-    
+
     li {
       margin-bottom: 0.3em;
+      line-height: 1.6;
+    }
+
+    blockquote {
+      margin: 1em 0;
+      padding: 0.75em 1em;
+      border-left: 4px solid #0066CC;
+      background: #F8FAFC;
+      font-style: italic;
+    }
+
+    code {
+      background: #F1F5F9;
+      padding: 0.2em 0.4em;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+      font-size: 9pt;
+    }
+
+    pre {
+      background: #F1F5F9;
+      padding: 1em;
+      border-radius: 6px;
+      overflow-x: auto;
+      margin: 1em 0;
+    }
+
+    pre code {
+      background: none;
+      padding: 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1em 0;
+      font-size: 9.5pt;
+    }
+
+    th, td {
+      padding: 0.5em;
+      text-align: left;
+      border: 1px solid #E5E7EB;
+    }
+
+    th {
+      background: #F8FAFC;
+      font-weight: 600;
+      color: #0066CC;
+    }
+
+    tr:nth-child(even) {
+      background: #FAFBFC;
+    }
+
+    strong, b {
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+
+    em, i {
+      font-style: italic;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid #E5E7EB;
+      margin: 1.5em 0;
     }
   </style>
 </head>
@@ -333,7 +417,7 @@ function generateHTMLReport(data: EvaluationPDFData, charts: Record<string, stri
   
   <h2>Executive Summary</h2>
   <div class="executive-summary">
-    <p>${data.executiveSummary}</p>
+    ${convertMarkdownToHTML(data.executiveSummary)}
   </div>
   
   ${charts.scoreBreakdown ? `
@@ -385,11 +469,11 @@ function generateHTMLReport(data: EvaluationPDFData, charts: Record<string, stri
   ${data.sections.map(section => `
     <div class="section-content avoid-break">
       <h3>${section.title}</h3>
-      <p>${section.content}</p>
-      
+      ${convertMarkdownToHTML(section.content)}
+
       ${section.subsections ? section.subsections.map(sub => `
         <h4>${sub.title}</h4>
-        <p>${sub.content}</p>
+        ${convertMarkdownToHTML(sub.content)}
       `).join('') : ''}
     </div>
   `).join('')}
@@ -402,7 +486,7 @@ function generateHTMLReport(data: EvaluationPDFData, charts: Record<string, stri
       <div class="agent-report">
         <h4>${agentNames[agentType] || agentType}</h4>
         <div class="agent-report-content">
-          <p>${report.substring(0, 3000)}${report.length > 3000 ? '...' : ''}</p>
+          ${convertMarkdownToHTML(report.substring(0, 3000))}${report.length > 3000 ? '<p><em>... (truncated)</em></p>' : ''}
         </div>
       </div>
     `).join('')}

@@ -54,20 +54,66 @@ interface PageToVisit {
   type: string;
 }
 
+async function fetchWithRetry(url: string, maxRetries: number = 3): Promise<Response> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, {
+        signal: AbortSignal.timeout(10000),
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1',
+          'Sec-Fetch-Dest': 'document',
+          'Sec-Fetch-Mode': 'navigate',
+          'Sec-Fetch-Site': 'none',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+          'Referer': new URL(url).origin
+        }
+      });
+
+      // If we get a 401/403, wait a bit and retry
+      if ((response.status === 401 || response.status === 403) && attempt < maxRetries - 1) {
+        const delay = Math.pow(2, attempt) * 1000; // Exponential backoff: 1s, 2s, 4s
+        console.log(`Got ${response.status} for ${url}, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+
+      return response;
+    } catch (error) {
+      lastError = error as Error;
+      if (attempt < maxRetries - 1) {
+        const delay = Math.pow(2, attempt) * 1000;
+        console.log(`Error fetching ${url}, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries}):`, error);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  throw lastError || new Error('Failed to fetch after retries');
+}
+
 export async function crawlCompanyWebsite(baseUrl: string, maxPages: number = 10): Promise<CrawledData> {
   let browser: Browser | undefined;
-  
+
   try {
     const normalizedUrl = normalizeUrl(baseUrl);
     const domain = new URL(normalizedUrl).hostname;
-    
+
     browser = await puppeteer.launch({
       headless: true,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
-        '--disable-gpu'
+        '--disable-gpu',
+        '--disable-blink-features=AutomationControlled'
       ]
     });
 
@@ -93,22 +139,61 @@ export async function crawlCompanyWebsite(baseUrl: string, maxPages: number = 10
 
       try {
         const page = await browser.newPage();
-        await page.goto(url, { waitUntil: 'networkidle2', timeout: 10000 });
-        
+
+        // Set realistic user agent and headers to avoid 401 errors
+        await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+        await page.setExtraHTTPHeaders({
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1',
+          'Sec-Fetch-Dest': 'document',
+          'Sec-Fetch-Mode': 'navigate',
+          'Sec-Fetch-Site': 'none',
+          'Cache-Control': 'max-age=0',
+          'Referer': normalizedUrl
+        });
+
+        // Mask automation detection
+        await page.evaluateOnNewDocument(() => {
+          Object.defineProperty(navigator, 'webdriver', {
+            get: () => undefined,
+          });
+        });
+
+        // Retry logic for page navigation
+        let navigationSuccess = false;
+        for (let retryAttempt = 0; retryAttempt < 3 && !navigationSuccess; retryAttempt++) {
+          try {
+            await page.goto(url, { waitUntil: 'networkidle2', timeout: 15000 });
+            navigationSuccess = true;
+          } catch (navError: any) {
+            if (retryAttempt < 2) {
+              const delay = Math.pow(2, retryAttempt) * 1000;
+              console.log(`Navigation failed for ${url}, retrying in ${delay}ms (attempt ${retryAttempt + 1}/3)`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+            } else {
+              throw navError;
+            }
+          }
+        }
+
         const content = await page.content();
         const $ = cheerio.load(content);
-        
+
         $('script, style, nav, header, footer, iframe, noscript').remove();
         const textContent = $('body').text().replace(/\s+/g, ' ').trim();
         crawledData.rawContent[type] = textContent.substring(0, 5000);
 
         await extractStructuredData($, type, crawledData, page);
-        
+
         await page.close();
-        
-        await new Promise(resolve => setTimeout(resolve, 500));
-      } catch (error) {
-        console.error(`Error crawling ${url}:`, error);
+
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Increased delay to be more respectful
+      } catch (error: any) {
+        console.error(`Error crawling ${url}:`, error.message || error);
+        // Continue to next page even if this one fails
       }
     }
 
@@ -137,22 +222,29 @@ async function discoverRelevantPages(baseUrl: string, domain: string): Promise<P
   ];
 
   try {
-    const response = await fetch(baseUrl, { signal: AbortSignal.timeout(5000) });
+    // Use fetchWithRetry to handle 401/403 errors with retries
+    const response = await fetchWithRetry(baseUrl);
+
+    if (!response.ok) {
+      console.error(`Failed to fetch ${baseUrl}: ${response.status} ${response.statusText}`);
+      return pages;
+    }
+
     const html = await response.text();
     const $ = cheerio.load(html);
-    
+
     const discoveredUrls = new Set<string>();
-    
+
     $('a[href]').each((_, el) => {
       const href = $(el).attr('href');
       if (!href) return;
-      
+
       try {
         const absoluteUrl = new URL(href, baseUrl).href;
         const urlObj = new URL(absoluteUrl);
-        
+
         if (urlObj.hostname !== new URL(baseUrl).hostname) return;
-        
+
         discoveredUrls.add(absoluteUrl);
       } catch {}
     });
@@ -167,9 +259,11 @@ async function discoverRelevantPages(baseUrl: string, domain: string): Promise<P
       { patterns: ['/investors', '/investor-relations', '/ir'], type: 'financial' }
     ];
 
-    for (const url of discoveredUrls) {
+    // Convert Set to Array to avoid TypeScript downlevelIteration error
+    const urlsArray = Array.from(discoveredUrls);
+    for (const url of urlsArray) {
       const lowerUrl = url.toLowerCase();
-      
+
       for (const { patterns, type } of relevantPatterns) {
         if (patterns.some(pattern => lowerUrl.includes(pattern))) {
           pages.push({ url, type });

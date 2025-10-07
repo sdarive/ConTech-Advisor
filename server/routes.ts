@@ -154,7 +154,18 @@ ${documentTexts.substring(0, 10000)}
             agentReports[agentType] = report;
           });
 
-          const finalReport = await synthesizeReports(context, agentReports);
+          console.log('All agent reports collected, starting synthesis...');
+
+          // Add timeout wrapper for synthesis
+          const synthesisTimeout = 120000; // 2 minutes
+          const synthesisPromise = synthesizeReports(context, agentReports);
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Synthesis timeout')), synthesisTimeout)
+          );
+
+          const finalReport = await Promise.race([synthesisPromise, timeoutPromise]) as any;
+
+          console.log('Synthesis complete, updating evaluation...');
 
           await storage.updateEvaluation(id, {
             status: "complete",
@@ -164,6 +175,8 @@ ${documentTexts.substring(0, 10000)}
             finalReport: finalReport as any,
             completedAt: new Date(),
           });
+
+          console.log('Evaluation marked as complete');
 
         } catch (error) {
           console.error("Error in analysis workflow:", error);
