@@ -418,9 +418,9 @@ export async function generateEvaluationPDF(data: EvaluationPDFData): Promise<Bu
     const charts = await generateChartImages(data.metrics);
     const html = generateHTMLReport(data, charts);
     
-    browser = await puppeteer.launch({
+   browser = await puppeteer.launch({
       headless: true,
-      executablePath: '/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium',
+      // The executablePath line is now GONE
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',

@@ -1,25 +1,55 @@
 # Use an official Node.js runtime as a parent image
 FROM node:20-slim
 
-# Set the working directory in the container
-WORKDIR /app
+# Install official Puppeteer dependencies
+# https://pptr.dev/troubleshooting#running-puppeteer-in-docker
+RUN apt-get update \
+    && apt-get install -y \
+    ca-certificates \
+    fonts-liberation \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libcairo2 \
+    libcups2 \
+    libdbus-1-3 \
+    libexpat1 \
+    libfontconfig1 \
+    libgbm1 \
+    libglib2.0-0 \
+    libgdk-pixbuf2.0-0 \
+    libgtk-3-0 \
+    libnspr4 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libstdc++6 \
+    libx11-6 \
+    libx11-xcb1 \
+    libxcb1 \
+    libxcomposite1 \
+    libxcursor1 \
+    libxdamage1 \
+    libxext6 \
+    libxfixes3 \
+    libxi6 \
+    libxrandr2 \
+    libxrender1 \
+    libxss1 \
+    libxtst6 \
+    lsb-release \
+    wget \
+    xdg-utils \
+    --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy package.json and package-lock.json to the working directory
+WORKDIR /app
 COPY package*.json ./
 
-# Install project dependencies
+# This will also download a compatible version of Chromium for Puppeteer
 RUN npm install
 
-# Copy the rest of the application's source code
 COPY . .
-
-# Build the client and server for production
-# This command is from your package.json
 RUN npm run build
 
-# Make your app's port available to the outside world
 EXPOSE 5000
-
-# The command to run your app
-# This command is from your package.json
 CMD [ "npm", "run", "start" ]

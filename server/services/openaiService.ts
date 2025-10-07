@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { AGENT_PROMPTS, type AgentType } from "../agents/promptLoader";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function runAgent(
   agentType: AgentType,

@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import multer from "multer";
 import { extractTextFromPDF, extractTextFromDOCX, extractTextFromTXT, scrapeWebsite } from "./services/documentProcessor";
 import { crawlCompanyWebsite, formatCrawledDataForAgents } from "./services/webCrawler";
-import { runAgent, synthesizeReports } from "./services/openaiService";
+import { runAgent, synthesizeReports } from "./services/geminiService";
 import { type AgentType } from "./agents/promptLoader";
 import { generateEvaluationPDF } from "./services/pdfGeneratorPuppeteer";
 
